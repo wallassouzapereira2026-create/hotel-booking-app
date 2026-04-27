@@ -6,10 +6,9 @@
   "reviewCount": 1245,
   "checkInDate": "2026-02-13",
   "checkOutDate": "2026-02-17",
-  "hospedageValue": 2198,
+  "hospedageValue": 1000,
   "paymentLink100": null,
-  "paymentLink30Pix": null,
-  "depositPercentage": 16,
+  "paymentLink30Pix": "www.google.com",
   "clientEmail": "hospede@booking.example.com",
   "clientPhone": "+55 (11) 99999-9999",
   "clientCpf": null,
@@ -21,5 +20,5 @@
   "breakfastIncluded": 1,
   "freeCancellationDate": "2026-01-29",
   "mainGuestName": "Wallas Pereira",
-  "photos": "[{\"id\":\"1\",\"url\":\"/images/hotel-hero.jpg\",\"title\":\"Hotel Exterior\"},{\"id\":\"2\",\"url\":\"/images/hotel-room.jpg\",\"title\":\"Hotel Room\"},{\"id\":\"3\",\"url\":\"/images/hotel-pool.jpg\",\"title\":\"Pool Area\"}]"
+  "photos": "[{\"id\":\"17773162733930.7702626622617613\",\"url\":\"/api/temp-image/hotel-photo-1777316273446-fjx1yd.jpeg\",\"title\":\"WhatsApp Image 2026-04-10 at 19\"}]"
 }

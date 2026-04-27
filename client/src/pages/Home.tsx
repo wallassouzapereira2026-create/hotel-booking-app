@@ -99,6 +99,7 @@ export default function Home() {
         hospedageValue: dbHotelData.hospedageValue || defaultHotelData.hospedageValue,
         paymentLink100: dbHotelData.paymentLink100 || defaultHotelData.paymentLink100,
         paymentLink30Pix: dbHotelData.paymentLink30Pix || defaultHotelData.paymentLink30Pix,
+        depositPercentage: dbHotelData.depositPercentage || defaultHotelData.depositPercentage,
         clientEmail: dbHotelData.clientEmail || defaultHotelData.clientEmail,
         clientPhone: dbHotelData.clientPhone || defaultHotelData.clientPhone,
         clientCpf: dbHotelData.clientCpf || defaultHotelData.clientCpf,
@@ -129,6 +130,7 @@ export default function Home() {
         hospedageValue: parseFloat(params.get('hospedageValue') || String(defaultHotelData.hospedageValue)),
         paymentLink100: params.get('paymentLink100') || defaultHotelData.paymentLink100,
         paymentLink30Pix: params.get('paymentLink30Pix') || defaultHotelData.paymentLink30Pix,
+        depositPercentage: parseInt(params.get('depositPercentage') || String(defaultHotelData.depositPercentage)),
         clientEmail: params.get('clientEmail') || defaultHotelData.clientEmail,
         clientPhone: params.get('clientPhone') || defaultHotelData.clientPhone,
         clientCpf: params.get('clientCpf') || defaultHotelData.clientCpf,
@@ -171,6 +173,7 @@ export default function Home() {
         hospedageValue: dbHotelData.hospedageValue || defaultHotelData.hospedageValue,
         paymentLink100: dbHotelData.paymentLink100 || defaultHotelData.paymentLink100,
         paymentLink30Pix: dbHotelData.paymentLink30Pix || defaultHotelData.paymentLink30Pix,
+        depositPercentage: dbHotelData.depositPercentage || defaultHotelData.depositPercentage,
         clientEmail: dbHotelData.clientEmail || defaultHotelData.clientEmail,
         clientPhone: dbHotelData.clientPhone || defaultHotelData.clientPhone,
         clientCpf: dbHotelData.clientCpf || defaultHotelData.clientCpf,
@@ -368,6 +371,7 @@ export default function Home() {
                 totalPrice={hotelData.hospedageValue}
                 paymentLink100={hotelData.paymentLink100 || undefined}
                 paymentLink30Pix={hotelData.paymentLink30Pix || undefined}
+                depositPercentage={hotelData.depositPercentage || 30}
                 clientName={hotelData.clientName}
                 clientEmail={hotelData.clientEmail}
                 clientPhone={hotelData.clientPhone}
@@ -403,6 +407,7 @@ export default function Home() {
               hospedageValue: hotelData.hospedageValue,
               paymentLink100: hotelData.paymentLink100,
               paymentLink30Pix: hotelData.paymentLink30Pix,
+              depositPercentage: hotelData.depositPercentage,
               clientEmail: hotelData.clientEmail,
               clientPhone: hotelData.clientPhone,
               clientCpf: hotelData.clientCpf,
