@@ -13,7 +13,15 @@ function loadHotelConfigFromFile() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-      return JSON.parse(data);
+      const config = JSON.parse(data);
+      // Garante que campos numéricos sejam tratados corretamente
+      return {
+        ...config,
+        depositPercentage: parseInt(config.depositPercentage) || 30,
+        hospedageValue: parseFloat(config.hospedageValue) || 0,
+        rating: parseFloat(config.rating) || 0,
+        reviewCount: parseInt(config.reviewCount) || 0
+      };
     }
   } catch (error) {
     console.warn('[Config] Erro ao carregar configuração:', error);
@@ -24,8 +32,11 @@ function loadHotelConfigFromFile() {
 // Salvar configuração no arquivo
 function saveHotelConfigToFile(data: any) {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
-    console.log('[Config] Configuração salva com sucesso');
+    // Carrega o que já existe para não perder campos que não foram enviados no update
+    const currentConfig = loadHotelConfigFromFile() || {};
+    const updatedConfig = { ...currentConfig, ...data };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(updatedConfig, null, 2));
+    console.log('[Config] Configuração salva com sucesso no arquivo');
   } catch (error) {
     console.error('[Config] Erro ao salvar configuração:', error);
   }
@@ -33,7 +44,6 @@ function saveHotelConfigToFile(data: any) {
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -47,192 +57,80 @@ export async function getDb() {
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
+  if (!db) return;
+  await db.insert(users).values(user).onDuplicateKeyUpdate({ set: user });
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
   return result.length > 0 ? result[0] : undefined;
 }
 
 export async function getDefaultHotelBooking() {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get hotel booking: database not available, loading from file");
     return loadHotelConfigFromFile();
   }
-
   const result = await db.select().from(hotelBooking).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result.length > 0 ? result[0] : loadHotelConfigFromFile();
 }
 
 export async function updateHotelBooking(id: number, data: Partial<InsertHotelBooking>) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot update hotel booking: database not available, saving to file");
-    // Salvar em arquivo como fallback
-    saveHotelConfigToFile(data);
-    return { affectedRows: 1 };
-  }
-
-  const result = await db.update(hotelBooking).set(data).where(eq(hotelBooking.id, id));
-  // Também salvar em arquivo para persistência
+  // Salva sempre no arquivo para garantir persistência no Railway
   saveHotelConfigToFile(data);
-  return result;
+  
+  if (!db) return { affectedRows: 1 };
+  return await db.update(hotelBooking).set(data).where(eq(hotelBooking.id, id));
 }
 
 export async function createHotelBooking(data: InsertHotelBooking) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot create hotel booking: database not available");
-    return undefined;
-  }
-
-  const result = await db.insert(hotelBooking).values(data);
-  return result;
+  if (!db) return undefined;
+  return await db.insert(hotelBooking).values(data);
 }
 
 export async function createReservation(data: InsertReservation) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot create reservation: database not available, using fallback storage");
-    // Fallback: salvar em arquivo JSON
     try {
-      const fs = await import('fs').then(m => m.promises);
-      const path = await import('path');
       const reservationsDir = path.join(process.cwd(), 'reservations');
-      
-      // Criar diretório se não existir
-      try {
-        await fs.mkdir(reservationsDir, { recursive: true });
-      } catch (e) {
-        // Diretório já existe
-      }
-      
+      if (!fs.existsSync(reservationsDir)) fs.mkdirSync(reservationsDir, { recursive: true });
       const timestamp = Date.now();
       const filename = path.join(reservationsDir, `reservation_${timestamp}.json`);
-      await fs.writeFile(filename, JSON.stringify(data, null, 2));
-      console.log(`[Storage] Reservation saved to ${filename}`);
+      fs.writeFileSync(filename, JSON.stringify(data, null, 2));
       return { insertId: timestamp };
     } catch (error) {
       console.error('[Storage] Failed to save reservation:', error);
       return undefined;
     }
   }
-
-  const result = await db.insert(reservations).values(data);
-  return result;
+  return await db.insert(reservations).values(data);
 }
 
 export async function getReservations(hotelBookingId: number) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get reservations: database not available, using fallback storage");
-    // Fallback: ler arquivos JSON
     try {
-      const fs = await import('fs').then(m => m.promises);
-      const path = await import('path');
       const reservationsDir = path.join(process.cwd(), 'reservations');
-      
-      try {
-        const files = await fs.readdir(reservationsDir);
-        const reservationsList = [];
-        
-        for (const file of files) {
-          if (file.endsWith('.json')) {
-            const filePath = path.join(reservationsDir, file);
-            const content = await fs.readFile(filePath, 'utf-8');
-            const data = JSON.parse(content);
-            if (data.hotelBookingId === hotelBookingId) {
-              reservationsList.push(data);
-            }
-          }
-        }
-        
-        return reservationsList;
-      } catch (error) {
-        console.error('[Storage] Failed to read reservations:', error);
-        return [];
-      }
+      if (!fs.existsSync(reservationsDir)) return [];
+      const files = fs.readdirSync(reservationsDir);
+      return files.filter(f => f.endsWith('.json')).map(file => {
+        return JSON.parse(fs.readFileSync(path.join(reservationsDir, file), 'utf-8'));
+      });
     } catch (error) {
-      console.error('[Storage] Error:', error);
       return [];
     }
   }
-
-  const result = await db.select().from(reservations).where(eq(reservations.hotelBookingId, hotelBookingId));
-  return result;
+  return await db.select().from(reservations).where(eq(reservations.hotelBookingId, hotelBookingId));
 }
 
 export async function getReservationById(id: number) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get reservation: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(reservations).where(eq(reservations.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
