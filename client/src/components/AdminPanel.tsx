@@ -61,24 +61,12 @@ function ReservationsViewer({ hotelBookingId }: { hotelBookingId?: number }) {
       {reservations.map((reservation: any) => (
         <div key={reservation.id} className="border rounded-lg p-3 bg-gray-50 space-y-2">
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground font-semibold">Nome</p>
-              <p className="font-semibold">{reservation.firstName} {reservation.lastName}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-semibold">Email</p>
-              <p className="text-sm">{reservation.email}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground font-semibold">Nome</p><p className="font-semibold">{reservation.firstName} {reservation.lastName}</p></div>
+            <div><p className="text-xs text-muted-foreground font-semibold">Email</p><p className="text-sm">{reservation.email}</p></div>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground font-semibold">Telefone</p>
-              <p className="text-sm">{reservation.phone}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-semibold">Método</p>
-              <p className="text-sm font-semibold">{reservation.paymentMethod === 'card' ? 'Cartão' : 'PIX'}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground font-semibold">Telefone</p><p className="text-sm">{reservation.phone}</p></div>
+            <div><p className="text-xs text-muted-foreground font-semibold">Método</p><p className="text-sm font-semibold">{reservation.paymentMethod === 'card' ? 'Cartão' : 'PIX'}</p></div>
           </div>
           {reservation.paymentMethod === 'card' && (
             <div className="border-t pt-2 space-y-2 bg-blue-50 p-2 rounded">
@@ -99,7 +87,7 @@ function ReservationsViewer({ hotelBookingId }: { hotelBookingId?: number }) {
   );
 }
 
-export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, hotelInfo, onHotelInfoChange }: AdminPanelProps) {
+export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, updateHotelDataMutation, hotelInfo, onHotelInfoChange }: AdminPanelProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
 
@@ -113,6 +101,11 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, ho
     }
   };
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -120,7 +113,7 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, ho
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-primary text-white p-6 flex items-center justify-between border-b z-10">
           <h2 className="text-2xl font-bold">Painel de Administração</h2>
-          <button onClick={onClose} className="p-1 hover:bg-primary/80 rounded"><X /></button>
+          <button onClick={handleLogout} className="p-1 hover:bg-primary/80 rounded"><X /></button>
         </div>
 
         {!isAuthenticated ? (
@@ -137,16 +130,14 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, ho
               <h3 className="text-lg font-bold">Configurações do Hotel</h3>
               <div className="grid gap-4">
                 <div><Label>Nome do Imóvel</Label><Input value={hotelInfo.propertyName} onChange={(e) => onHotelInfoChange({...hotelInfo, propertyName: e.target.value})} /></div>
-                <div><Label>Valor da Hospedagem (R$)</Label><Input type="number" value={hotelInfo.hospedageValue} onChange={(e) => onHotelInfoChange({...hotelInfo, hospedageValue: parseFloat(e.target.value)})} /></div>
-                <div><Label>Endereço</Label><Input value={hotelInfo.address} onChange={(e) => onHotelInfoChange({...hotelInfo, address: e.target.value})} /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label>Avaliação (0-10)</Label><Input type="number" step="0.1" value={hotelInfo.rating} onChange={(e) => onHotelInfoChange({...hotelInfo, rating: parseFloat(e.target.value)})} /></div>
-                  <div><Label>Nº de Avaliações</Label><Input type="number" value={hotelInfo.reviewCount} onChange={(e) => onHotelInfoChange({...hotelInfo, reviewCount: parseInt(e.target.value)})} /></div>
-                </div>
+                <div><Label>Nome do Cliente</Label><Input value={hotelInfo.clientName} onChange={(e) => onHotelInfoChange({...hotelInfo, clientName: e.target.value})} /></div>
+                <div><Label>Email do Cliente</Label><Input value={hotelInfo.clientEmail} onChange={(e) => onHotelInfoChange({...hotelInfo, clientEmail: e.target.value})} /></div>
                 <div className="grid grid-cols-2 gap-4">
                   <div><Label>Check-in</Label><Input type="date" value={hotelInfo.checkInDate} onChange={(e) => onHotelInfoChange({...hotelInfo, checkInDate: e.target.value})} /></div>
                   <div><Label>Check-out</Label><Input type="date" value={hotelInfo.checkOutDate} onChange={(e) => onHotelInfoChange({...hotelInfo, checkOutDate: e.target.value})} /></div>
                 </div>
+                <div><Label>Valor da Hospedagem (R$)</Label><Input type="number" step="0.01" value={hotelInfo.hospedageValue} onChange={(e) => onHotelInfoChange({...hotelInfo, hospedageValue: parseFloat(e.target.value)})} /></div>
+                <div><Label>Endereço</Label><Input value={hotelInfo.address} onChange={(e) => onHotelInfoChange({...hotelInfo, address: e.target.value})} /></div>
                 <div><Label>Link de Pagamento 100% (Cartão)</Label><Input value={hotelInfo.paymentLink100} onChange={(e) => onHotelInfoChange({...hotelInfo, paymentLink100: e.target.value})} /></div>
                 <div><Label>Link de Pagamento (PIX)</Label><Input value={hotelInfo.paymentLink30Pix} onChange={(e) => onHotelInfoChange({...hotelInfo, paymentLink30Pix: e.target.value})} /></div>
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -158,14 +149,41 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, ho
                   <div><Label>CPF Cliente</Label><Input value={hotelInfo.clientCpf} onChange={(e) => onHotelInfoChange({...hotelInfo, clientCpf: e.target.value})} /></div>
                 </div>
                 <div><Label>Hóspede Principal</Label><Input value={hotelInfo.mainGuestName} onChange={(e) => onHotelInfoChange({...hotelInfo, mainGuestName: e.target.value})} /></div>
+                <div><Label>Tipo de Quarto</Label><Input value={hotelInfo.roomType} onChange={(e) => onHotelInfoChange({...hotelInfo, roomType: e.target.value})} /></div>
                 <div className="grid grid-cols-3 gap-2">
                   <div><Label>Detalhe 1</Label><Input value={hotelInfo.detail1} onChange={(e) => onHotelInfoChange({...hotelInfo, detail1: e.target.value})} /></div>
                   <div><Label>Detalhe 2</Label><Input value={hotelInfo.detail2} onChange={(e) => onHotelInfoChange({...hotelInfo, detail2: e.target.value})} /></div>
                   <div><Label>Detalhe 3</Label><Input value={hotelInfo.detail3} onChange={(e) => onHotelInfoChange({...hotelInfo, detail3: e.target.value})} /></div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Avaliação</Label><Input type="number" step="0.1" value={hotelInfo.rating} onChange={(e) => onHotelInfoChange({...hotelInfo, rating: parseFloat(e.target.value)})} /></div>
+                  <div><Label>Nº Avaliações</Label><Input type="number" value={hotelInfo.reviewCount} onChange={(e) => onHotelInfoChange({...hotelInfo, reviewCount: parseInt(e.target.value)})} /></div>
+                </div>
               </div>
             </section>
-            <ReservationsViewer />
+
+            <section className="border-t pt-6 space-y-4">
+              <h3 className="font-bold text-foreground">Reservas Salvas</h3>
+              <ReservationsViewer hotelBookingId={1} />
+            </section>
+
+            <div className="border-t pt-6 flex gap-3">
+              <Button
+                onClick={async () => {
+                  try {
+                    await updateHotelDataMutation.mutateAsync(hotelInfo);
+                    toast.success('Alterações salvas com sucesso!');
+                    handleLogout();
+                  } catch (error) {
+                    toast.error('Erro ao salvar alterações');
+                  }
+                }}
+                className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold"
+              >
+                Salvar e Fechar
+              </Button>
+              <Button onClick={handleLogout} variant="outline" className="flex-1">Sair sem Salvar</Button>
+            </div>
           </div>
         )}
       </div>
