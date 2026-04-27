@@ -9,6 +9,7 @@
   "hospedageValue": 2198,
   "paymentLink100": null,
   "paymentLink30Pix": null,
+  "depositPercentage": 16,
   "clientEmail": "hospede@booking.example.com",
   "clientPhone": "+55 (11) 99999-9999",
   "clientCpf": null,
