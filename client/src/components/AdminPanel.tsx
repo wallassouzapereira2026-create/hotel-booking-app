@@ -101,6 +101,29 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, up
     }
   };
 
+  const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Data = event.target?.result as string;
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData: base64Data, mimeType: file.type }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          onPhotosChange([...photos, { id: Date.now().toString() + Math.random(), url: data.url, title: file.name.split('.')[0] }]);
+          toast.success('Foto adicionada!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     onClose();
@@ -162,6 +185,23 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, up
               </div>
             </section>
 
+            <section className="space-y-4 border-t pt-6">
+              <h3 className="text-lg font-bold">Fotos do Hotel</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map(photo => (
+                  <div key={photo.id} className="relative group aspect-video">
+                    <img src={photo.url} className="w-full h-full object-cover rounded" />
+                    <button onClick={() => onPhotosChange(photos.filter(p => p.id !== photo.id))} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100"><X size={12}/></button>
+                  </div>
+                ))}
+                <label className="border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 aspect-video">
+                  <Upload size={20} className="text-gray-400" />
+                  <span className="text-[10px] text-gray-400">Upload</span>
+                  <input type="file" className="hidden" multiple onChange={handleAddPhoto} accept="image/*" />
+                </label>
+              </div>
+            </section>
+
             <section className="border-t pt-6 space-y-4">
               <h3 className="font-bold text-foreground">Reservas Salvas</h3>
               <ReservationsViewer hotelBookingId={1} />
@@ -171,7 +211,8 @@ export default function AdminPanel({ isOpen, onClose, photos, onPhotosChange, up
               <Button
                 onClick={async () => {
                   try {
-                    await updateHotelDataMutation.mutateAsync(hotelInfo);
+                    const photosJson = JSON.stringify(photos);
+                    await updateHotelDataMutation.mutateAsync({ ...hotelInfo, photos: photosJson });
                     toast.success('Alterações salvas com sucesso!');
                     handleLogout();
                   } catch (error) {
