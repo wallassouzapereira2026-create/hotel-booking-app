@@ -1,4 +1,7 @@
 import express from "express";
+import path from "path";
+import fs from "fs";
+import multer from "multer";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -35,80 +38,80 @@ async function startServer() {
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   
-  // Upload endpoint for hotel photos
-  app.post('/api/upload', async (req, res) => {
+  // Pasta de uploads persistente em disco (não some ao reiniciar)
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('[Upload] Pasta uploads/ criada em:', uploadsDir);
+  }
+
+  // Servir arquivos de uploads como arquivos estáticos
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Configurar multer para upload de arquivos
+  const upload = multer({ storage: multer.memoryStorage() });
+
+  // Upload endpoint - salva foto em disco permanentemente
+  app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
-      const { imageData, mimeType } = req.body;
-      
-      if (!imageData || !mimeType) {
-        return res.status(400).json({ error: 'Missing imageData or mimeType' });
+      // Suporta tanto FormData (arquivo) quanto base64
+      let buffer: Buffer;
+      let ext: string;
+
+      if (req.body.imageData) {
+        // Modo base64
+        const { imageData, mimeType } = req.body;
+        if (!imageData || !mimeType) {
+          return res.status(400).json({ error: 'Missing imageData or mimeType' });
+        }
+        const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
+        buffer = Buffer.from(base64Data, 'base64');
+        ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+      } else if ((req as any).file) {
+        // Modo FormData (arquivo)
+        buffer = (req as any).file.buffer;
+        ext = (req as any).file.originalname.split('.').pop() || 'jpg';
+      } else {
+        return res.status(400).json({ error: 'No file or imageData provided' });
       }
-      
-      // Convert base64 to buffer
-      const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
-      const buffer = Buffer.from(base64Data, 'base64');
-      
-      // Generate unique filename
+
+      // Gera nome único para o arquivo
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(7);
-      const ext = mimeType.split('/')[1] || 'jpg';
       const filename = `hotel-photo-${timestamp}-${random}.${ext}`;
-      
-      try {
-        // Import storage helper
-        const { storagePut } = await import('../storage.js');
-        
-        // Upload to storage
-        const { url } = await storagePut(
-          `hotel-photos/${filename}`,
-          buffer,
-          mimeType
-        );
-        
-        console.log('Upload successful:', url);
-        return res.json({ url, filename });
-      } catch (storageError) {
-        console.error('Storage error:', storageError);
-        
-        // Fallback: Create a data URL or temporary URL
-        // For development, we'll return a success response with a placeholder
-        const tempUrl = `/api/temp-image/${filename}`;
-        
-        // Store the image temporarily in memory (in production, use proper storage)
-        (req.app as any).tempImages = (req.app as any).tempImages || {};
-        (req.app as any).tempImages[filename] = {
-          data: buffer,
-          mimeType: mimeType,
-          timestamp: Date.now()
-        };
-        
-        console.log('Using fallback temporary URL:', tempUrl);
-        return res.json({ url: tempUrl, filename });
-      }
+      const filepath = path.join(uploadsDir, filename);
+
+      // Salva no disco (permanente — não some ao reiniciar)
+      fs.writeFileSync(filepath, buffer);
+      console.log('[Upload] Foto salva em disco:', filepath);
+
+      const url = `/uploads/${filename}`;
+      return res.json({ url, filename });
+
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('[Upload] Erro:', error);
       return res.status(500).json({ error: 'Upload failed: ' + String(error) });
     }
   });
-  
-  // Endpoint to serve temporary images
-  app.get('/api/temp-image/:filename', (req, res) => {
-    const { filename } = req.params;
-    const tempImages = (req.app as any).tempImages || {};
-    const imageData = tempImages[filename];
-    
-    if (!imageData) {
-      return res.status(404).json({ error: 'Image not found' });
+
+  // Deletar foto do disco quando removida no ADM
+  app.delete('/api/upload/:filename', (req, res) => {
+    try {
+      const { filename } = req.params;
+      // Segurança: impede path traversal (ex: ../../etc/passwd)
+      const safeName = path.basename(filename);
+      const filepath = path.join(uploadsDir, safeName);
+
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+        console.log('[Upload] Foto removida do disco:', filepath);
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('[Upload] Erro ao deletar:', error);
+      return res.status(500).json({ error: 'Delete failed: ' + String(error) });
     }
-    
-    // Check if image is expired (older than 24 hours)
-    if (Date.now() - imageData.timestamp > 24 * 60 * 60 * 1000) {
-      delete tempImages[filename];
-      return res.status(404).json({ error: 'Image expired' });
-    }
-    
-    res.set('Content-Type', imageData.mimeType);
-    res.send(imageData.data);
   });
   
   // tRPC API
@@ -127,6 +130,8 @@ async function startServer() {
   }
 
   const port = parseInt(process.env.PORT || "3000");
+
+  // Banco de dados será inicializado na primeira requisição
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on port ${port}`);

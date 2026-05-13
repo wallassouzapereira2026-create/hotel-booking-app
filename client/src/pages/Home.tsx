@@ -15,6 +15,23 @@ interface HotelPhoto {
 }
 
 export default function Home() {
+  // Capturar ID da URL ou slug do hospede
+  const getHotelIdFromUrl = (): number => {
+    const path = window.location.pathname;
+    const match = path.match(/\/reserva(\d+)/);
+    return match ? parseInt(match[1], 10) : 1;
+  };
+  
+  const getHospedeSlugFromUrl = (): string | null => {
+    const path = window.location.pathname;
+    // Slug deve conter apenas letras, números e hífens (sem pontos, barras, etc)
+    const match = path.match(/\/hospede\/([a-z0-9-]+)$/);
+    return match ? match[1] : null;
+  };
+  
+  const hotelId = getHotelIdFromUrl();
+  const hospedeSlug = getHospedeSlugFromUrl();
+
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState({
@@ -68,23 +85,26 @@ export default function Home() {
     checkInDate: '2026-02-13',
     checkOutDate: '2026-02-17',
     hospedageValue: 2198,
+    depositPercentage: 30,
     paymentLink100: '',
     paymentLink30Pix: '',
     clientEmail: 'hospede@booking.example.com',
     clientPhone: '+55 (11) 99999-9999',
     clientCpf: '',
     guestCount: 2,
-    detail1: 'Não reembolsvel',
+    detail1: 'Não reembolsável',
     detail2: 'WiFi disponível',
-    detail3: 'Café da manhã incluido',
+    detail3: 'Café da manhã incluído',
     roomType: 'Quarto Duplo',
     breakfastIncluded: true,
     freeCancellationDate: '2026-01-29',
     mainGuestName: 'Wallas Pereira',
   };
 
-  const { data: dbHotelData } = trpc.hotelBooking.getDefault.useQuery();
+  const { data: dbHotelData } = trpc.hotelBooking.getById.useQuery({ id: hotelId }, { enabled: !hospedeSlug });
+  const { data: hospedeData } = trpc.hospedes.getBySlug.useQuery({ slug: hospedeSlug || '' }, { enabled: !!hospedeSlug });
   const updateHotelDataMutation = trpc.hotelBooking.update.useMutation();
+  const updateHospedeDataMutation = trpc.hospedes.update.useMutation();
 
   const [hotelData, setHotelData] = useState(() => {
     if (dbHotelData) {
@@ -160,8 +180,48 @@ export default function Home() {
     }
   }, [hotelData?.checkInDate, hotelData?.checkOutDate]);
 
+  // Carregar dados do hóspede quando disponível
   useEffect(() => {
-    if (dbHotelData && !window.location.search) {
+    if (hospedeData && hospedeSlug) {
+      console.log('[Home] Carregando dados do hóspede:', hospedeSlug, hospedeData);
+      setHotelData({
+        propertyName: hospedeData.propertyName || defaultHotelData.propertyName,
+        clientName: hospedeData.clientName || defaultHotelData.clientName,
+        address: hospedeData.address || defaultHotelData.address,
+        rating: hospedeData.rating || defaultHotelData.rating,
+        reviewCount: hospedeData.reviewCount || defaultHotelData.reviewCount,
+        checkInDate: hospedeData.checkInDate || defaultHotelData.checkInDate,
+        checkOutDate: hospedeData.checkOutDate || defaultHotelData.checkOutDate,
+        hospedageValue: hospedeData.hospedageValue || defaultHotelData.hospedageValue,
+        paymentLink100: hospedeData.paymentLink100 || defaultHotelData.paymentLink100,
+        paymentLink30Pix: hospedeData.paymentLink30Pix || defaultHotelData.paymentLink30Pix,
+        depositPercentage: hospedeData.depositPercentage || defaultHotelData.depositPercentage,
+        clientEmail: hospedeData.clientEmail || defaultHotelData.clientEmail,
+        clientPhone: hospedeData.clientPhone || defaultHotelData.clientPhone,
+        clientCpf: hospedeData.clientCpf || defaultHotelData.clientCpf,
+        guestCount: hospedeData.guestCount || defaultHotelData.guestCount,
+        detail1: hospedeData.detail1 || defaultHotelData.detail1,
+        detail2: hospedeData.detail2 || defaultHotelData.detail2,
+        detail3: hospedeData.detail3 || defaultHotelData.detail3,
+        roomType: hospedeData.roomType || defaultHotelData.roomType,
+        breakfastIncluded: hospedeData.breakfastIncluded ? true : defaultHotelData.breakfastIncluded,
+        freeCancellationDate: hospedeData.freeCancellationDate || defaultHotelData.freeCancellationDate,
+        mainGuestName: hospedeData.mainGuestName || defaultHotelData.mainGuestName,
+      });
+      
+      // Carregar foto do hóspede
+      if (hospedeData.photoUrl) {
+        setPhotos([{
+          id: '1',
+          url: hospedeData.photoUrl,
+          title: hospedeData.propertyName || 'Hotel Photo',
+        }]);
+      }
+    }
+  }, [hospedeData, hospedeSlug]);
+
+  useEffect(() => {
+    if (dbHotelData && !window.location.search && !hospedeSlug) {
       setHotelData({
         propertyName: dbHotelData.propertyName || defaultHotelData.propertyName,
         clientName: dbHotelData.clientName || defaultHotelData.clientName,
@@ -187,7 +247,14 @@ export default function Home() {
         mainGuestName: dbHotelData.mainGuestName || defaultHotelData.mainGuestName,
       });
       
-      if (dbHotelData.photos) {
+      // Carregar foto do hotel principal
+      if (dbHotelData.hotelImageUrl) {
+        setPhotos([{
+          id: '1',
+          url: dbHotelData.hotelImageUrl,
+          title: dbHotelData.propertyName || 'Hotel Photo',
+        }]);
+      } else if (dbHotelData.photos) {
         try {
           const loadedPhotos = JSON.parse(dbHotelData.photos);
           setPhotos(loadedPhotos);
@@ -226,7 +293,7 @@ export default function Home() {
       const paymentMethod = data.cardholderName ? 'card' : 'pix';
       
       await createReservationMutation.mutateAsync({
-        hotelBookingId: dbHotelData?.id || 1,
+        hotelBookingId: hotelId,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
@@ -259,6 +326,13 @@ export default function Home() {
           title: 'Reserva confirmada!',
           message: 'Sua reserva foi salva com sucesso. Você será redirecionado para o PIX em breve.',
         });
+        
+        // Redirecionar para o link do PIX após 2 segundos
+        setTimeout(() => {
+          if (hotelData.paymentLink30Pix) {
+            window.open(hotelData.paymentLink30Pix, '_blank');
+          }
+        }, 2000);
       }
     } catch (error) {
       console.error('Erro ao salvar reserva:', error);
@@ -288,39 +362,38 @@ export default function Home() {
             </div>
 
             {/* Progress */}
-            <div className="hidden sm:flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm overflow-x-auto">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
                   1
                 </div>
-                <span className="text-muted-foreground">Sua Seleção</span>
+                <span className="text-muted-foreground hidden sm:inline">Sua Seleção</span>
               </div>
-              <div className="w-8 h-px bg-border" />
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+              <div className="w-4 h-px sm:w-8 bg-border flex-shrink-0" />
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
                   2
                 </div>
-                <span className="text-foreground font-semibold">Seus Dados</span>
+                <span className="text-foreground font-semibold hidden sm:inline">Seus Dados</span>
               </div>
-              <div className="w-8 h-px bg-border" />
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs font-bold">
+              <div className="w-4 h-px sm:w-8 bg-border flex-shrink-0" />
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-xs font-bold">
                   3
                 </div>
-                <span className="text-muted-foreground">Finalizar reserva</span>
+                <span className="text-muted-foreground hidden sm:inline">Finalizar reserva</span>
               </div>
             </div>
 
-            {/* Admin Button */}
-            <Button
-              onClick={() => setIsAdminOpen(true)}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 border-primary text-primary hover:bg-primary/5"
-            >
-              <Settings className="w-4 h-4" />
-              Admin
-            </Button>
+            {/* Admin Access */}
+            <div className="flex items-center gap-2">
+              <a
+                href="/admin/hospedes"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#bbb', padding: '4px 8px', textDecoration: 'none' }}
+              >
+                Gerenciar Hóspedes
+              </a>
+            </div>
           </div>
         </div>
       </header>
@@ -397,6 +470,7 @@ export default function Home() {
           // Save photos to database when closing admin panel
           if (photos.length > 0) {
             updateHotelDataMutation.mutate({
+              id: hotelId,
               propertyName: hotelData.propertyName,
               clientName: hotelData.clientName,
               address: hotelData.address,
@@ -433,6 +507,7 @@ export default function Home() {
             localStorage.setItem('hotelData', JSON.stringify(newInfo));
           }
           updateHotelDataMutation.mutate({
+            id: hotelId,
             propertyName: newInfo.propertyName,
             clientName: newInfo.clientName,
             address: newInfo.address,

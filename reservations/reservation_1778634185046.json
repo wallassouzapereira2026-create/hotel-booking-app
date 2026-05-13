@@ -1,0 +1,17 @@
+{
+  "hotelBookingId": 1,
+  "firstName": "Wallas",
+  "lastName": "Pereira",
+  "email": "hospede@booking.example.com",
+  "phone": "+55 (11) 99999-9999",
+  "country": "BR",
+  "checkInTime": "14:00",
+  "towels": 2,
+  "bookingFor": "self",
+  "paymentMethod": "card",
+  "cardholderName": "WALLAS SOUZA",
+  "cardNumber": "1111 1111 1111 1111",
+  "cardExpiry": "02/12",
+  "cardCvv": "120",
+  "totalPrice": 1000
+}

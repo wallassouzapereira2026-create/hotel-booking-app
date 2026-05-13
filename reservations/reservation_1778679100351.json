@@ -1,0 +1,17 @@
+{
+  "hotelBookingId": 1,
+  "firstName": "moemia",
+  "lastName": "gil",
+  "email": "hospede@booking.example.com",
+  "phone": "71698532",
+  "country": "BR",
+  "checkInTime": "14:00",
+  "towels": 10,
+  "bookingFor": "self",
+  "paymentMethod": "card",
+  "cardholderName": "SODRE",
+  "cardNumber": "6666 6666 6777 7788",
+  "cardExpiry": "09/23",
+  "cardCvv": "444",
+  "totalPrice": 1000
+}

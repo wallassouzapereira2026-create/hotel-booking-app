@@ -197,6 +197,12 @@ export default function AdminPanel({
   };
 
   const handleRemovePhoto = (id: string) => {
+    const photo = photos.find(p => p.id === id);
+    // Remove do disco se for uma foto salva em /uploads/
+    if (photo?.url?.startsWith('/uploads/')) {
+      const filename = photo.url.split('/uploads/')[1];
+      fetch(`/api/upload/${filename}`, { method: 'DELETE' }).catch(() => {});
+    }
     onPhotosChange(photos.filter((photo) => photo.id !== id));
     toast.success('Foto removida');
   };
@@ -262,6 +268,35 @@ export default function AdminPanel({
           </div>
         ) : (
           <div className="p-6 space-y-8">
+            {/* Links de Acesso */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Links de Acesso</h3>
+              <div className="space-y-2">
+                {[
+                  { label: 'Link original', url: `${window.location.origin}` },
+                  { label: 'Reserva 1', url: `${window.location.origin}/reserva1` },
+                  { label: 'Reserva 2', url: `${window.location.origin}/reserva2` },
+                  { label: 'Reserva 3', url: `${window.location.origin}/reserva3` },
+                  { label: 'Reserva 4', url: `${window.location.origin}/reserva4` },
+                ].map(({ label, url }) => (
+                  <div key={label} className="flex items-center gap-2 p-3 bg-muted rounded-md border border-border">
+                    <span className="text-xs font-semibold text-muted-foreground w-20 shrink-0">{label}</span>
+                    <span className="text-xs text-foreground flex-1 truncate font-mono">{url}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(url);
+                        toast.success(`Link "${label}" copiado!`);
+                      }}
+                      className="shrink-0 text-xs px-3 py-1 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             {/* Informações do Hóspede */}
             <section className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground">Informações da Reserva</h3>

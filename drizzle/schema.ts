@@ -48,6 +48,7 @@ export const hotelBooking = mysqlTable("hotelBooking", {
   breakfastIncluded: int("breakfastIncluded").default(0),
   freeCancellationDate: varchar("freeCancellationDate", { length: 50 }),
   mainGuestName: varchar("mainGuestName", { length: 255 }),
+  hotelImageUrl: text("hotelImageUrl"),
   photos: text("photos"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -79,3 +80,37 @@ export const reservations = mysqlTable("reservations", {
 
 export type Reservation = typeof reservations.$inferSelect;
 export type InsertReservation = typeof reservations.$inferInsert;
+
+export const hospedes = mysqlTable("hospedes", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  photoUrl: text("photoUrl"),
+  propertyName: varchar("propertyName", { length: 255 }).notNull(),
+  clientName: varchar("clientName", { length: 255 }).notNull(),
+  address: text("address"),
+  rating: int("rating"),
+  reviewCount: int("reviewCount"),
+  checkInDate: varchar("checkInDate", { length: 50 }),
+  checkOutDate: varchar("checkOutDate", { length: 50 }),
+  hospedageValue: int("hospedageValue"),
+  depositPercentage: int("depositPercentage").default(30),
+  paymentLink100: text("paymentLink100"),
+  paymentLink30Pix: text("paymentLink30Pix"),
+  clientEmail: varchar("clientEmail", { length: 320 }),
+  clientPhone: varchar("clientPhone", { length: 20 }),
+  clientCpf: varchar("clientCpf", { length: 20 }),
+  guestCount: int("guestCount"),
+  detail1: text("detail1"),
+  detail2: text("detail2"),
+  detail3: text("detail3"),
+  roomType: varchar("roomType", { length: 255 }),
+  breakfastIncluded: int("breakfastIncluded").default(0),
+  freeCancellationDate: varchar("freeCancellationDate", { length: 50 }),
+  mainGuestName: varchar("mainGuestName", { length: 255 }),
+  photos: text("photos"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Hospede = typeof hospedes.$inferSelect;
+export type InsertHospede = typeof hospedes.$inferInsert;

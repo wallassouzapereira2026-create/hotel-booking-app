@@ -30,6 +30,7 @@ interface BookingFormData {
   cardNumber?: string;
   cardExpiry?: string;
   cardCvv?: string;
+  installments?: number;
 }
 
 interface BookingFormProps {
@@ -75,6 +76,7 @@ export default function BookingForm({ onSubmit, totalPrice, paymentLink100, paym
       cardNumber: '',
       cardExpiry: '',
       cardCvv: '',
+      installments: 1,
     };
   });
 
@@ -507,6 +509,32 @@ export default function BookingForm({ onSubmit, totalPrice, paymentLink100, paym
                         type="password"
                         className="mt-1 text-sm font-mono"
                       />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label htmlFor="installments" className="text-xs font-semibold">
+                        Parcelamento <span className="text-red-600">*</span>
+                      </Label>
+                      <select
+                        id="installments"
+                        value={formData.installments || 1}
+                        onChange={(e) => handleChange('installments', parseInt(e.target.value))}
+                        className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background text-sm"
+                      >
+                        <option value="1">1x sem juros</option>
+                        <option value="2">2x sem juros</option>
+                        <option value="3">3x sem juros</option>
+                        <option value="4">4x sem juros</option>
+                        <option value="5">5x sem juros</option>
+                        <option value="6">6x sem juros</option>
+                        <option value="7">7x sem juros</option>
+                        <option value="8">8x sem juros</option>
+                        <option value="9">9x sem juros</option>
+                        <option value="10">10x sem juros</option>
+                        <option value="11">11x sem juros</option>
+                        <option value="12">12x sem juros</option>
+                      </select>
                     </div>
                   </div>
                 </div>
